@@ -7,12 +7,12 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC20 } from "./tokens/IssuedERC20.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 
-// add PROXY UPGRADES
 contract BridgeERC20 is UUPSUpgradeable {
     using SafeERC20 for IERC20Metadata;
 
-    address public bridgeConfig;
+    IAddressBook public addressBook;
 
     address public validator;
 
@@ -63,7 +63,7 @@ contract BridgeERC20 is UUPSUpgradeable {
     );
 
     function initialize(
-        address _bridgeConfig,
+        address _addressBook,
         bool _isProxyChain,
         address _validator,
         string memory _nativeName,
@@ -71,7 +71,7 @@ contract BridgeERC20 is UUPSUpgradeable {
         uint8 _nativeDecimals,
         uint256 _nativeTransferGasLimit
     ) public initializer {
-        bridgeConfig = _bridgeConfig;
+        addressBook = IAddressBook(_addressBook);
         initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
@@ -84,21 +84,13 @@ contract BridgeERC20 is UUPSUpgradeable {
     }
 
     function _authorizeUpgrade(address) internal view override {
-        // msg.sender == bridgeConfig.owner();
+        addressBook.requireOnlyOwner(msg.sender);
     }
 
     constructor() {
         _disableInitializers();
     }
 
-    function enforceIsValidator(address account) internal view {
-        require(account == validator, "BridgeERC20: Only validator!");
-    }
-
-    function setValidator(address _newValidator) external {
-        enforceIsValidator(msg.sender);
-        validator = _newValidator;
-    }
 
     function getTransferId(uint256 _nonce, uint256 _initialChain) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(_nonce, _initialChain));
@@ -197,7 +189,7 @@ contract BridgeERC20 is UUPSUpgradeable {
         bytes calldata _recipient,
         TokenInfo calldata _tokenInfo
     ) external {
-        enforceIsValidator(msg.sender);
+        addressBook.requireTransferValidator(msg.sender);
 
         require(
             !registeredNonces[_initialChain][_externalNonce],

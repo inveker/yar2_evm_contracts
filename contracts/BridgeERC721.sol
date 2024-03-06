@@ -7,9 +7,10 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC721 } from "./tokens/IssuedERC721.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 
 contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
-    address public bridgeConfig;
+    IAddressBook public addressBook;
 
     address public validator;
 
@@ -54,14 +55,13 @@ contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
         bytes recipient
     );
 
-    
     function initialize(
-        address _bridgeConfig,
+        address _addressBook,
         bool _isProxyChain,
         address _validator
     ) public initializer {
-        bridgeConfig = _bridgeConfig;
-          initBlock = block.number;
+        addressBook = IAddressBook(_addressBook);
+        initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
         issuedTokenImplementation = address(new IssuedERC721());
@@ -69,7 +69,7 @@ contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
     }
 
     function _authorizeUpgrade(address) internal view override {
-        // msg.sender == bridgeConfig.owner();
+        addressBook.requireOnlyOwner(msg.sender);
     }
 
     constructor() {
@@ -180,7 +180,7 @@ contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
         bytes calldata _recipient,
         TokenInfo calldata _tokenInfo
     ) external {
-        enforceIsValidator(msg.sender);
+        addressBook.requireTransferValidator(msg.sender);
 
         require(
             !registeredNonces[_initialChain][_externalNonce],
@@ -241,11 +241,7 @@ contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
                 IssuedERC721(issuedTokenAddress).burn(_tokenId);
             } else if (_initialChain == _originalChain) {
                 // LOCK PROXY ISSUED TOKENS
-                IssuedERC721(issuedTokenAddress).mint(
-                    address(this),
-                    _tokenId,
-                    _tokenInfo.tokenUri
-                );
+                IssuedERC721(issuedTokenAddress).mint(address(this), _tokenId, _tokenInfo.tokenUri);
             }
 
             bytes memory sender = _sender; // TODO: fix Error HH600

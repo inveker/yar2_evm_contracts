@@ -7,9 +7,10 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC1155 } from "./tokens/IssuedERC1155.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 
 contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
-    address public bridgeConfig;
+    IAddressBook public addressBook;
 
     address public validator;
 
@@ -82,11 +83,11 @@ contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
     );
 
     function initialize(
-        address _bridgeConfig,
+        IAddressBook _addressBook,
         bool _isProxyChain,
         address _validator
     ) public initializer {
-        bridgeConfig = _bridgeConfig;
+        addressBook = IAddressBook(_addressBook);
         initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
@@ -95,7 +96,7 @@ contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
     }
 
     function _authorizeUpgrade(address) internal view override {
-        // msg.sender == bridgeConfig.owner();
+        addressBook.requireOnlyOwner(msg.sender);
     }
 
     constructor() {
@@ -126,15 +127,6 @@ contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
         bytes calldata data
     ) external pure override returns (bytes4) {
         return IERC1155Receiver.onERC1155BatchReceived.selector;
-    }
-
-    function enforceIsValidator(address account) internal view {
-        require(account == validator, "BridgeERC1155: Only validator!");
-    }
-
-    function setValidator(address _newValidator) external {
-        enforceIsValidator(msg.sender);
-        validator = _newValidator;
     }
 
     function getTransferId(uint256 _nonce, uint256 _initialChain) public pure returns (bytes32) {
@@ -280,7 +272,7 @@ contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
         bytes calldata _recipient,
         string calldata _tokenUri
     ) external {
-        enforceIsValidator(msg.sender);
+        addressBook.requireTransferValidator(msg.sender);
 
         require(
             !registeredNonces[_initialChain][_externalNonce],
@@ -377,7 +369,7 @@ contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
         bytes calldata _recipient,
         string[] memory _tokenUris
     ) external {
-        enforceIsValidator(msg.sender);
+        addressBook.requireTransferValidator(msg.sender);
 
         require(_tokenIds.length > 0, "BridgeERC1155: _tokenIds.length == 0");
         require(
