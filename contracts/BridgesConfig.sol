@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,12 +9,18 @@ import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC20 } from "./tokens/IssuedERC20.sol";
 
 contract BridgesConfig is UUPSUpgradeable {
+    struct Bridge {
+        uint256 tranferGasAmount;
+        uint256 deployGasAmount;
+    }
+    mapping(string typeName => Bridge) public bridges;
+
     struct Chain {
         uint256 chainId;
         string defaultRpcUrl;
     }
     Chain[] public chains;
-    
+
     struct Admins {
         address owner;
     }
@@ -38,7 +44,7 @@ contract BridgesConfig is UUPSUpgradeable {
         Fees calldata _fees,
         Meta calldata _meta
     ) public initializer {
-        for(uint256 i; i < _chains.length; ++i) {
+        for (uint256 i; i < _chains.length; ++i) {
             chains.push(_chains[i]);
         }
         admins = _admins;
@@ -68,6 +74,11 @@ contract BridgesConfig is UUPSUpgradeable {
     function setMeta(Meta calldata _meta) external {
         requireOnlyOwner(msg.sender);
         meta = _meta;
+    }
+
+    function addBridge(Bridge calldata _bridge) external {
+        requireOnlyOwner(msg.sender);
+        bridges.push(_bridge);
     }
 
     function _authorizeUpgrade(address) internal view override {
