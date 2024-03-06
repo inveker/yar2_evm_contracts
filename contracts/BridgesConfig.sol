@@ -76,9 +76,9 @@ contract BridgesConfig is UUPSUpgradeable {
         meta = _meta;
     }
 
-    function addBridge(Bridge calldata _bridge) external {
+    function setBridge(string calldata _typeName, Bridge calldata _bridge) external {
         requireOnlyOwner(msg.sender);
-        bridges.push(_bridge);
+        bridges[_typeName] = _bridge;
     }
 
     function _authorizeUpgrade(address) internal view override {

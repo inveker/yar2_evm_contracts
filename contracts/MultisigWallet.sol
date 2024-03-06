@@ -12,7 +12,7 @@ contract MultisigWallet {
     /// @notice Signatures have already been registered
     mapping(bytes32 messageHash => mapping(address signer => bool)) public alreadyVerified;
 
-    constructor() {
+    constructor(uint256 _requiredSigners, address[] memory _signers) {
         require(_requiredSigners > 0, "_requiredSigners must be greater than zero!");
         require(_signers.length >= _requiredSigners, "_requiredSigners > _signers.length");
         requiredSigners = _requiredSigners;
@@ -25,7 +25,7 @@ contract MultisigWallet {
     }
 
     function submitTransaction(
-        address _signers,
+        address[] calldata _signers,
         bytes[] calldata _signatures,
         address _target,
         uint256 _value,
