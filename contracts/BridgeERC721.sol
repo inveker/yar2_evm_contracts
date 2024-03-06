@@ -3,11 +3,14 @@ pragma solidity 0.8.17;
 
 import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC721 } from "./tokens/IssuedERC721.sol";
 
-contract BridgeERC721 is IERC721Receiver {
+contract BridgeERC721 is IERC721Receiver, UUPSUpgradeable {
+    address public bridgeConfig;
+
     address public validator;
 
     uint256 public currentChain;
@@ -51,15 +54,26 @@ contract BridgeERC721 is IERC721Receiver {
         bytes recipient
     );
 
-    constructor(
+    
+    function initialize(
+        address _bridgeConfig,
         bool _isProxyChain,
         address _validator
-    ) {
-        initBlock = block.number;
+    ) public initializer {
+        bridgeConfig = _bridgeConfig;
+          initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
         issuedTokenImplementation = address(new IssuedERC721());
         validator = _validator;
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        // msg.sender == bridgeConfig.owner();
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function onERC721Received(

@@ -3,12 +3,16 @@ pragma solidity 0.8.17;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC20 } from "./tokens/IssuedERC20.sol";
+
 // add PROXY UPGRADES
-contract BridgeERC20 {
+contract BridgeERC20 is UUPSUpgradeable {
     using SafeERC20 for IERC20Metadata;
+
+    address public bridgeConfig;
 
     address public validator;
 
@@ -58,14 +62,16 @@ contract BridgeERC20 {
         bytes recipient
     );
 
-    constructor(
+    function initialize(
+        address _bridgeConfig,
         bool _isProxyChain,
         address _validator,
         string memory _nativeName,
         string memory _nativeSymbol,
         uint8 _nativeDecimals,
         uint256 _nativeTransferGasLimit
-    ) {
+    ) public initializer {
+        bridgeConfig = _bridgeConfig;
         initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
@@ -75,6 +81,14 @@ contract BridgeERC20 {
         nativeSymbol = _nativeSymbol;
         nativeDecimals = _nativeDecimals;
         nativeTransferGasLimit = _nativeTransferGasLimit;
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        // msg.sender == bridgeConfig.owner();
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function enforceIsValidator(address account) internal view {

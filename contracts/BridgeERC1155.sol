@@ -3,11 +3,14 @@ pragma solidity 0.8.17;
 
 import { IERC1155MetadataURI } from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
 import { IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { ERC1967ProxyCreate2 } from "./utils/ERC1967ProxyCreate2.sol";
 import { IssuedERC1155 } from "./tokens/IssuedERC1155.sol";
 
-contract BridgeERC1155 is IERC1155Receiver {
+contract BridgeERC1155 is IERC1155Receiver, UUPSUpgradeable {
+    address public bridgeConfig;
+
     address public validator;
 
     uint256 public currentChain;
@@ -78,15 +81,25 @@ contract BridgeERC1155 is IERC1155Receiver {
         bytes recipient
     );
 
-    constructor(
+    function initialize(
+        address _bridgeConfig,
         bool _isProxyChain,
         address _validator
-    ) {
+    ) public initializer {
+        bridgeConfig = _bridgeConfig;
         initBlock = block.number;
         currentChain = block.chainid;
         isProxyChain = _isProxyChain;
         issuedTokenImplementation = address(new IssuedERC1155());
         validator = _validator;
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        // msg.sender == bridgeConfig.owner();
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function supportsInterface(bytes4 interfaceID) external pure override returns (bool) {
@@ -195,7 +208,7 @@ contract BridgeERC1155 is IERC1155Receiver {
             tokensLength == _amounts.length,
             "BridgeERC1155: _tokenIds.length != _amounts.length"
         );
-        for(uint256 i; i < tokensLength; i++) {
+        for (uint256 i; i < tokensLength; i++) {
             require(_amounts[i] > 0, "BridgeERC1155: _amounts contains zero value!");
         }
 
@@ -332,12 +345,7 @@ contract BridgeERC1155 is IERC1155Receiver {
                 IssuedERC1155(issuedTokenAddress).burn(address(this), _tokenId, _amount);
             } else if (_initialChain == _originalChain) {
                 // LOCK PROXY ISSUED TOKENS
-                IssuedERC1155(issuedTokenAddress).mint(
-                    address(this),
-                    _tokenId,
-                    _amount,
-                    _tokenUri
-                );
+                IssuedERC1155(issuedTokenAddress).mint(address(this), _tokenId, _amount, _tokenUri);
             }
 
             bytes memory sender = _sender; // TODO: fix Error HH600
