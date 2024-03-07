@@ -15,6 +15,8 @@ contract AddressBook is UUPSUpgradeable {
     }
     Admins public admins;
 
+    address public treasury;
+
     function initialize(
         Admins calldata _admins
     ) public initializer {
@@ -27,6 +29,10 @@ contract AddressBook is UUPSUpgradeable {
 
     function requireTransferValidator(address _account) public view {
         require(_account == admins.transferValidator, "only transfer validator!");
+    }
+
+    function setTreasury(address _contract) public {
+        treasury = _contract;
     }
 
     function _authorizeUpgrade(address) internal view override {
